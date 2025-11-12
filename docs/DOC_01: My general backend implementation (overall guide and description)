@@ -1,0 +1,719 @@
+═════════════════════════════════════════════════════════════
+                DEVELOPMENT JOURNAL — ENTRY 001
+          Normative Document Analysis Backend Architecture
+                Project Initialization & Planning
+═════════════════════════════════════════════════════════════
+
+Date: November 5, 2025
+Focus: Backend architecture design and library selection for Nim-based
+       normative document processing system
+
+
+═════════════════════════════════════════════════════════════
+PROJECT VISION
+═════════════════════════════════════════════════════════════
+
+I'm building a system to process normative documents—regulations, standards, and
+directives—to identify which rules apply, detect additions and contradictions,
+and recognize revocations. The ultimate goal is to analyze multiple documents
+and produce a coherent "good practices" document that complies with all valid
+normative directives.
+
+The system needs to support user context input for tailored results, which means
+I'll need semantic grouping (clustering norms by topic), statistical analysis,
+classification capabilities, and the ability to generate new compliant normative
+documents.
+
+My requirements include data persistence, historical analysis (comparing
+previously processed documents), tokenization, labeling, and efficient
+analytical reasoning. I want deterministic behavior wherever possible—yielding
+boolean-like outputs when practical—while still being able to integrate machine
+learning or semantic reasoning layers when needed for the more nuanced work.
+
+═════════════════════════════════════════════════════════════
+LIBRARY SELECTION & RATIONALE
+═════════════════════════════════════════════════════════════
+
+After researching the Nim ecosystem, I've identified these libraries that could
+assist with my backend: exprgrad, ormin, moveiterators, bard, nimplex,
+pyopenai, chain, toktok, stats, lexbase, parseutils, tables, sequtils,
+arraymancer, sqlite3, and re.
+
+Let me break down how I plan to use each category of tools and what role they'll
+play in my architecture.
+
+
+═════════════════════════════════════════════════════════════
+▸ CATEGORY 1: Parsing, Tokenization & Syntactic Analysis
+═════════════════════════════════════════════════════════════
+
+Recommended for immediate use: toktok, lexbase, parseutils, re, sequtils, tables
+
+These are my core tools for deterministic text processing, and most of them come
+from Nim's standard library, which means they're stable and well-maintained.
+
+  • re — Nim's standard regex module. I'll use this for pattern matching section
+    headers like "Section 1" or "Art. 5", simple extraction tasks, and
+    rule-based detection of structural elements in documents.
+
+  • lexbase — Standard library building blocks for lexers. These are low-level
+    utilities that will make writing custom lexers easier when I need them.
+
+  • toktok — A generic lexer designed to create compile-time token kinds and
+    runtime token streams. This will be my go-to for building a deterministic
+    tokenizer when I need more structure than regex alone can provide.
+
+  • parseutils — Standard library helpers for string parsing and small
+    transformations. Useful for the many small text manipulations I'll need.
+
+  • sequtils — Standard library sequence operations (map, filter, fold, etc.).
+    This will be invaluable for working with token lists and feature lists.
+
+  • tables — Standard library hashmaps and dictionaries. Essential for frequency
+    counts, indexes, and inverted indexes.
+
+My implementation approach for this category:
+
+  → For tokenization, I'll start with toktok since it provides the most
+    structured approach with compile-time token kinds and stable parsing. This
+    determinism is crucial for auditability in normative processing.
+
+  → For section detection and extraction, I'll build small deterministic regex
+    plus lexer rules to find canonical identifiers like "sec", "art", "§", and
+    their associated numbers. I'll use toktok when I need to produce token
+    streams for downstream parsing, especially when dealing with varied or
+    unknown document formats.
+
+  → The lexer-plus-rules approach gives me deterministic behavior, which is
+    critical for auditability in normative processing work.
+
+Summary: My canonical tokenizer/lexer will be built with toktok and lexbase for
+handling varied formatting, paired with re for quick, robust pattern detection.
+I'll keep sequtils and tables as my workhorse utilities throughout the project.
+
+═════════════════════════════════════════════════════════════
+▸ CATEGORY 2: Storage & Persistence
+═════════════════════════════════════════════════════════════
+
+Primary tools: sqlite3, ormin (with caution), plus tables/sequtils for
+in-memory structures
+
+  • sqlite3 — Nim's wrapper around SQLite. This is perfect for storing parsed
+    documents, section metadata, tokens, and diffs. It's simple, embeddable,
+    deterministic, and easy to inspect and export—exactly what I need.
+
+  • ormin — A Nim ORM that can generate Nim model code from SQL schemas and
+    perform database interactions more ergonomically. Could be useful if I want
+    model-like access in my backend.
+
+  • tables — Good for in-memory caches and inverted indexes before committing
+    to the database.
+
+My workflow will be: ingest → parse → compute features → store sections plus
+features plus change records in SQLite. I might use ormin to simplify CRUD
+operations if I prefer ORM-style code, but raw SQL with a small access layer
+works perfectly fine too.
+
+Important consideration: I should start with direct sqlite3 usage and a simple
+SQL schema (document, section, feature, change_record tables). I'll only add
+ormin later if I want the convenience of generated models. However, I need to be
+mindful that ORMs can obscure precise SQL behavior, which is less desirable when
+I need deterministic audit trails. My plan is to use raw SQL for the first
+iteration, then evaluate whether ormin simplifies my codebase enough to justify
+its inclusion.
+
+
+═════════════════════════════════════════════════════════════
+▸ CATEGORY 3: Numeric/Vector Math, ML & Experimentation
+═════════════════════════════════════════════════════════════
+
+Use cautiously/optionally: exprgrad, arraymancer, nimplex, stats
+
+Let me be clear about what these libraries are and my verification notes:
+
+  • arraymancer — Nim's tensor and array library. This is mature for Nim
+    numeric work and can help with vector math, small models, and matrix
+    operations. Good for experimental numeric code if I want to stay in Nim.
+
+  • exprgrad — An experimental autodiff and small deep learning framework in
+    Nim. It exists on GitHub and is useful if I want a pure-Nim autoencoder or
+    want to experiment with training inside Nim, but it's experimental and has
+    a small community.
+
+  • nimplex — A scientific library for sampling and traversal in simplex spaces.
+    This is quite niche and probably unnecessary for normative text work.
+
+  • stats — Nim packages providing statistical functions. Useful for basic
+    descriptive statistics, z-scores, distributions, and statistical tests.
+
+How these map to my requirements:
+
+For autoencoders or self-adjusting algorithms, it's possible to implement purely
+in Nim using arraymancer and/or exprgrad, but I'll face significant limitations.
+The ecosystem is smaller with fewer prebuilt models and less community support,
+and it will take longer to reach production-grade reliability.
+
+For feature computation and scoring, arraymancer plus stats are fine for vector
+math, similarity calculations, PCA, and clustering prototypes.
+
+My honest assessment for ML-heavy work: If my goal is fast progress and strong
+ML performance, I should use Nim for numeric preprocessing and call Python (see
+next category) for training and embeddings. I'll only use arraymancer or
+exprgrad for small experiments or if I absolutely insist on a single-language
+stack. The nimplex library is unlikely to be needed for my use case.
+
+═════════════════════════════════════════════════════════════
+▸ CATEGORY 4: Python & LLM Interoperability
+═════════════════════════════════════════════════════════════
+
+Recommended approach: Use nimpy (Nim ↔ Python bridge) plus a Python LLM and
+embedding stack.
+
+Let me clarify some confusion in my initial library list:
+
+  • pyopenai — This likely refers to the Python OpenAI client (openai package),
+    not a Nim package. It's good for calling GPT-style models if I plan to use
+    a hosted API.
+
+  • bard — This is ambiguous. Google Bard is a service and there's no official
+    public Bard API. I should treat this as "possibly refers to Google LLMs" and
+    prefer stable, documented APIs instead.
+
+  • chain — Unclear reference. If I meant LangChain, that's Python-based and
+    useful for orchestrating LLM prompts, chains, and tools. If I meant Nim's
+    chains (std/chains), that's different—it's for linked-list helpers. I need
+    to clarify which I actually meant.
+
+  • Nim OpenAI clients — There are Nim libraries that talk to OpenAI like
+    openai-nim and openai_leap, but the ecosystem is smaller than Python's.
+
+How this maps to my requirements:
+
+  → For embeddings, I'll get best results with Python pretrained models like
+    sentence-transformers or Hugging Face. I'll get robust semantic embeddings
+    for change detection and clustering.
+
+  → For LLM reasoning and summarization, I should use Python tooling or hosted
+    APIs (OpenAI, Hugging Face hosted, etc.) to generate normative summaries,
+    recommended compliant text, and to process contextual user prompts.
+
+  → My integration strategy: Keep preprocessing and deterministic parsing in
+    Nim, then call Python to create embeddings for sections, cluster or group
+    them semantically, run a classifier or autoencoder or call an LLM to draft
+    suggested normative text, and return results for storage and audit.
+
+Clear recommendation for myself: Don't try to call Bard or reinvent LLM
+orchestration in Nim. Use Python with openai, sentence-transformers, and
+optionally langchain, and call it through nimpy. This gives me the best ML and
+LLM performance while maintaining Nim as the deterministic, auditable core.
+
+
+═════════════════════════════════════════════════════════════
+▸ CATEGORY 5: Helpers & Iteration Utilities
+═════════════════════════════════════════════════════════════
+
+Useful: moveiterators, sequtils, tables, stats
+
+  • moveiterators — Iterator utilities that use move semantics when iterating
+    sequences that may change size. Handy for efficient in-place operations and
+    memory-safe, high-performance iteration patterns.
+
+  • sequtils & tables — Already covered above as standard library utilities.
+
+  • stats — For descriptive and inferential statistics.
+
+My decision: I'll only use moveiterators if I encounter performance-sensitive
+loops that specifically need move semantics. Otherwise, sequtils and tables will
+suffice for my needs.
+
+
+═════════════════════════════════════════════════════════════
+▸ CATEGORY 6: Items Needing Clarification
+═════════════════════════════════════════════════════════════
+
+
+Some items in my initial list were ambiguous or need better alternatives:
+
+  • bard — Ambiguous. Better to replace with concrete providers like openai
+    (Python) or Hugging Face inference endpoints.
+
+  • chain — I need to clarify whether I meant Nim chains (linked-lists) or
+    Python langchain. If I meant LangChain, I should do it in Python.
+
+  • pyopenai — I should use Python's openai package or Nim OpenAI wrappers like
+    openai-nim depending on where my orchestration runs.
+
+  • arraymancer — I had this slightly misspelled initially. The correct name is
+    arraymancer, and I'll use it if I want Nim-native tensor math.
+
+  • exprgrad — This exists but is experimental. Okay for experiments but not for
+    production ML work.
+
+
+═════════════════════════════════════════════════════════════
+PRACTICAL PIPELINE ARCHITECTURE
+═════════════════════════════════════════════════════════════
+
+
+Here's my recommended architecture showing who does what and when:
+
+  1. Ingest & Persist (Nim)
+     ├─ Use sqlite3 to persist raw documents plus metadata
+     └─ Build loader.nim to read files and store raw text and metadata in DB
+
+  2. Deterministic Parsing & Tokenization (Nim)
+     ├─ Use toktok, lexbase, and re to reliably extract sections and articles
+     └─ Store canonical section IDs and normalized text in database
+
+  3. Feature Extraction (Nim)
+     ├─ Compute token counts using sequtils and tables
+     ├─ Apply deterministic heuristics (exact match, hash, Jaccard)
+     └─ Compute local numeric features (length, word counts) via sequtils/stats
+
+  4. Embeddings & Semantic Analysis (Python via nimpy)
+     ├─ Send canonical section text to Python
+     ├─ Use sentence-transformers or OpenAI embeddings to get vectors
+     ├─ Compute cosine similarities and cluster semantically
+     └─ Use langchain or custom prompt flows for summary generation if needed
+
+  5. Comparison & Classification (Nim or Python)
+     ├─ Simple classifiers with thresholds and rules → implement in Nim for
+     │  determinism
+     └─ ML classifiers or autoencoders → better in Python (train with exported
+        CSVs). If I want Nim-native training, experiment with exprgrad or
+        arraymancer
+
+  6. Reporting & Storage (Nim)
+     ├─ Store ChangeRecords, similarity scores, cluster assignments in SQLite
+     └─ Export reports (CSV, JSON) for audit and manual review
+
+  7. Human-in-the-Loop & Iterative Improvement
+     └─ Provide UI (Flet, web) that queries DB, displays diffs, allows manual
+        labeling. Labeled data feeds back into ML retraining
+
+═════════════════════════════════════════════════════════════
+CONCRETE IMPLEMENTATION PLAN
+═════════════════════════════════════════════════════════════
+
+
+═════════════════════════════════════════════════════════════
+Phase 1: Use Now (Start Today — Deterministic Backend)
+═════════════════════════════════════════════════════════════
+
+These are mandatory and I should implement them immediately:
+
+  • re, parseutils, sequtils, tables (stdlib) — Core text processing
+  • toktok, lexbase — For robust tokenization and lexer implementation
+  • sqlite3 — Store documents, sections, and change records
+  • moveiterators — Optionally, for safe in-place iteration if needed
+
+
+═════════════════════════════════════════════════════════════
+Phase 2: Semantic & ML Integration
+═════════════════════════════════════════════════════════════
+
+I should not try to implement full embedding and training in Nim unless I need
+it for research purposes. Instead:
+
+  → Use Python via nimpy with sentence-transformers, scikit-learn, torch, or
+    openai for embeddings and model training
+
+  → Use openai-nim only if I want a Nim-native wrapper for simple OpenAI API
+    calls, but Python has a much better ecosystem
+
+═════════════════════════════════════════════════════════════
+Experimental Phase: If I Insist on Nim-Only
+═════════════════════════════════════════════════════════════
+
+Only for experiments or if I absolutely need a single-language stack:
+
+  • arraymancer for tensor math
+  • exprgrad for small autodiff experiments
+  • stats for numeric analysis
+  • nimplex only if my design requires specialized sampling in simplex spaces
+    (otherwise skip)
+
+
+═════════════════════════════════════════════════════════════
+IMPLEMENTATION TIMELINE
+═════════════════════════════════════════════════════════════
+
+Days 0–2: Minimal Deterministic Pipeline (Start Here)
+  → Implement loader using sqlite3 and os functions
+  → Implement parser using re and parseutils with regex patterns to locate
+    headers and boundaries
+  → Implement tokenizer using toktok (or simple splitWhitespace if format is
+    very consistent)
+  → Store parsed sections in SQLite
+
+Days 2–4: Feature Engineering & Deterministic Comparison
+  → Implement token frequency maps using tables and sequtils
+  → Implement deterministic heuristics: exact hash means unchanged, high Jaccard
+    (above 0.8) means minor edit, missing means removed, low similarity means
+    modified
+  → Export CSV for sample documents
+
+Next Phase: Semantic Enrichment (Python)
+  → Use nimpy to call Python embedding steps
+  → Send canonical section text and get back vectors
+  → Store vectors in DB or use vector DB (initially store as BLOBs in SQLite)
+  → Compute cosine similarity and semantic clusters
+  → Tag sections by cluster
+
+Next Phase: Classification & Autoencoder
+  → If supervised labels exist, train a classifier in Python
+  → If not, experiment with anomaly detection (autoencoder) on embedding vectors
+    to detect major semantic shifts
+  → Optionally prototype a Nim inference layer (call Python for heavy models)
+
+Final Phase: UI and Human Feedback
+  → Provide a UI (Flet, web) that displays diffs and lets me label results
+  → Feed labels back into training pipeline
+
+
+═════════════════════════════════════════════════════════════
+MODULE-BY-MODULE DESIGN GUIDE
+═════════════════════════════════════════════════════════════
+
+
+═════════════════════════════════════════════════════════════
+main.nim — The Orchestrator
+═════════════════════════════════════════════════════════════
+
+This file conducts the entire workflow using the standard library (os, sequtils)
+and my custom modules (loader, parser, analyzer, reporter).
+
+Implementation approach:
+  → Begin by loading configuration paths and setting up SQLite for persistence
+  → Load all normative documents from a specified directory via loader module
+  → Call the parser to structure them into hierarchical units
+  → Invoke tokenization and feature extraction routines
+  → Send results to analyzer for comparison
+  → Send to reporter for summaries
+
+Key principle: Keep main.nim pure and procedural. It should coordinate, not
+calculate. Use logging to track progress and handle exceptions deterministically.
+
+Why Nim: Ideal for orchestration—type-safe, fast, clear control flow. Python
+would add unnecessary overhead here.
+
+═════════════════════════════════════════════════════════════
+loader.nim — Ingestion and Versioning
+═════════════════════════════════════════════════════════════
+
+
+Uses os, strutils, and optionally sqlite3 for database-backed tracking. This
+module imports raw documents, detects versions (by metadata or filename
+patterns), and returns structured Nim objects.
+
+Implementation approach:
+  → For each file in norms/ directory, read its contents into memory
+  → Use regex (re) to detect version strings or amendment numbers
+  → Insert metadata (title, date, version) into SQLite database if not already
+    present
+  → Emit a sequence of Document objects to be parsed downstream
+
+Key libraries:
+  • re for pattern matching of headers or version codes
+  • sqlite3 for metadata persistence
+  • tables for in-memory mapping of document identifiers
+
+Why Nim: Excellent for file I/O and data structuring. No reason to use Python
+unless I need to handle PDFs or DOCX that require conversion (in which case I
+can use a Python CLI bridge).
+
+═════════════════════════════════════════════════════════════
+parser.nim — Structural Extraction
+═════════════════════════════════════════════════════════════
+
+
+This is where I identify sections, articles, and nested rules using re, lexbase,
+and parseutils. This module is the backbone of my system—the quality of parsing
+defines the quality of comparison.
+
+Implementation approach:
+  → Define regex patterns to detect headers like "Sec [0-9]+", "Art.", or "§"
+  → Split documents accordingly
+  → Each match defines a structural node (Section) containing id, title, and
+    content
+  → Consider ambiguous boundaries—use both regex anchors and token cues
+  → May add recursive descent using lexbase if norms are deeply nested
+
+Critical consideration: When implementing, I need to be mindful of incomplete
+section closures. I'll implement a fallback that assigns trailing text to the
+previous section.
+
+Output: Structured Section objects to tokenizer.nim
+
+Why Nim: Fast regex and string slicing. Very efficient for deterministic
+parsing. Python has easier regex debugging but is slower and less type-safe.
+
+═════════════════════════════════════════════════════════════
+tokenizer.nim — Token Stream & Normalization
+═════════════════════════════════════════════════════════════
+
+
+Tokenization converts each section's text into meaningful symbols.
+
+Implementation approach:
+  → Use toktok for defining lexical rules (identifiers, numbers, punctuation,
+    words)
+  → Clean results using sequtils (filter, map)
+  → Normalize tokens to lowercase and remove stopwords
+  → Optionally use re for punctuation stripping
+  → Store results in seq[string]
+
+Design consideration: I need to design token categories carefully—terms,
+numbers, references (like "Annex A"), etc. Mark each token's role (identifier,
+reference, modifier).
+
+Output: Normalized tokens to features.nim
+
+Why Nim: Great for deterministic lexical analysis with near C-level performance.
+Python with NLTK or spaCy would be richer but overkill unless I need semantic
+tagging.
+
+═════════════════════════════════════════════════════════════
+features.nim — Feature Extraction & Representation
+═════════════════════════════════════════════════════════════
+
+This layer transforms tokens into quantitative structures: frequency vectors,
+hashes, and contextual indicators.
+
+Implementation approach:
+  → Use tables to count token occurrences, stats to normalize frequencies
+  → Compute simple metrics: total length, token diversity, hash (SHA or FNV)
+  → Generate feature vectors per section
+  → May also use arraymancer or exprgrad for lightweight numerical
+    experimentation (e.g., dimensionality reduction or autoencoder prototypes)
+
+Storage strategy: Store feature vectors in memory for current session and
+persist simplified metrics in SQLite.
+
+Output: Structured data for comparison via comparator.nim
+
+Why Nim: Deterministic, high performance, good numeric control. Python is better
+if using embeddings or transformer models.
+
+═════════════════════════════════════════════════════════════
+comparator.nim — Diffing & Contradiction Detection
+═════════════════════════════════════════════════════════════
+
+
+This is where comparisons between document versions happen. It merges semantic
+and syntactic insights into classifications like Added, Modified, or Revoked.
+
+Implementation approach:
+  → Compare sections by ID or by textual similarity
+  → For deterministic comparison, compute:
+    • Token Jaccard similarity
+    • Cosine similarity (on TF vectors)
+    • Hash equality
+  → If embedding support is desired, call Python (via nimpy) to compute semantic
+    embeddings and cosine distance with models like sentence-transformers
+  → Use thresholds to classify each section as unchanged, slightly modified,
+    redefined, or revoked
+
+Output: List of change records to storage.nim
+
+Why Nim and Python: Nim is excellent for exact, deterministic comparisons.
+Python is required for semantic embeddings and nuanced contradiction detection.
+I'll combine both—Nim calls Python embedding module only when semantic checking
+is needed.
+
+═════════════════════════════════════════════════════════════
+storage.nim — Persistent Data Layer
+═════════════════════════════════════════════════════════════
+
+
+Responsible for managing the SQLite database, storing document metadata,
+features, and comparison results.
+
+Implementation approach:
+  → Use Nim's sqlite3 and json to store structured data
+  → Design tables for:
+    • documents: id, version, date
+    • sections: doc_id, sec_id, tokens
+    • changes: old_sec, new_sec, type, similarity
+
+Normalization principle: Normalize data to keep results reusable for future
+analysis sessions.
+
+Why Nim: Ideal for embedding lightweight databases with minimal dependencies.
+Python is unnecessary unless using ORM frameworks, which add overhead.
+
+═════════════════════════════════════════════════════════════
+reporting.nim — Summary & Human Output
+═════════════════════════════════════════════════════════════
+
+
+
+Generates CSV, JSON, or HTML reports summarizing contradictions, revocations,
+and updates.
+
+Implementation approach:
+  → Aggregate changes by document pair
+  → Format them using strformat
+  → Export results for visualization
+  → Optionally use a Python module (through nimpy) to create semantic summaries
+    using an LLM
+
+Why Nim and Python: Nim is best for deterministic report formatting. Python is
+suitable for natural-language summaries using LLMs or Hugging Face.
+
+═════════════════════════════════════════════════════════════
+python_bridge.py — Semantic & ML Companion (Optional)
+═════════════════════════════════════════════════════════════
+
+
+Implements heavy ML logic. Responsible for embedding generation, semantic
+similarity, and context clustering. Called by Nim via nimpy bindings.
+
+Implementation approach:
+  → Use sentence-transformers or OpenAI API (pyopenai) for embeddings
+  → Return similarity scores and cluster labels to Nim
+  → Nim then integrates results deterministically into reports
+
+Why Python: Nim isn't mature enough for full semantic ML stack. Python is
+perfect for ML but slower, so I limit it to heavy tasks only.
+
+
+═════════════════════════════════════════════════════════════
+CRITICAL WARNINGS & QUALITY CONSIDERATIONS
+═════════════════════════════════════════════════════════════
+
+═════════════════════════════════════════════════════════════
+Determinism vs ML Trade-offs
+═════════════════════════════════════════════════════════════
+
+
+My deterministic parsing and tokenization must be strictly auditable. ML and LLM
+outputs are probabilistic, so I must always store the model version, prompt,
+similarity thresholds, and raw outputs for traceability.
+
+═════════════════════════════════════════════════════════════
+Library Maturity Concerns
+═════════════════════════════════════════════════════════════
+
+
+exprgrad and some niche Nim libraries are experimental. I should rely on them
+for research and experiments, not for the compliance-critical decision path in
+production.
+
+═════════════════════════════════════════════════════════════
+Ambiguous Library Names
+═════════════════════════════════════════════════════════════
+
+
+
+bard and chain were ambiguous in my initial list. I should prefer named,
+well-maintained Python packages (OpenAI, Hugging Face, LangChain) if I need LLM
+orchestration.
+
+═════════════════════════════════════════════════════════════
+Storage Format for Embeddings
+═════════════════════════════════════════════════════════════
+
+
+SQLite is fine for prototyping, but for larger scale I'll want a vector database
+like FAISS or Milvus on the Python side.
+
+═════════════════════════════════════════════════════════════
+Legal and Compliance Considerations
+═════════════════════════════════════════════════════════════
+
+
+If these outputs will be used for formal compliance decisions, I must add a
+human-review step and produce human-readable provenance documenting who ran
+what, with which thresholds, and when.
+
+
+═════════════════════════════════════════════════════════════
+STARTER IMPLEMENTATION CHECKLIST
+═════════════════════════════════════════════════════════════
+
+
+What I'll code first, in order:
+
+  1. src/loader.nim
+     └─ Read .txt files, store raw text plus metadata into SQLite
+
+  2. src/parser.nim
+     └─ Simple re patterns to split sections; store Section(id, title, content)
+
+  3. src/tokenizer.nim
+     └─ Minimal toktok-based tokenization or splitWhitespace fallback
+
+  4. src/comparator.nim
+     └─ Jaccard plus hash detection; output CSV diffs.csv
+
+  5. scripts/py_embed.py
+     └─ Python script using sentence-transformers to convert text to vectors
+        (call from Nim via nimpy)
+
+  6. src/runner.nim
+     └─ Orchestration: load docs, parse, compute heuristics, call Python
+        embedder for semantic similarity, persist results
+
+
+═════════════════════════════════════════════════════════════
+FINAL RECOMMENDATIONS TO MYSELF
+═════════════════════════════════════════════════════════════
+
+
+Core Nim Stack (Use Now)
+  → re, parseutils, sequtils, tables, toktok, sqlite3
+
+Optional Nim Numeric/ML (Experiment Later)
+  → arraymancer, exprgrad, stats
+
+Python for Heavy ML/LLM (Strongly Recommended)
+  → sentence-transformers, scikit-learn, openai or Hugging Face inference
+  → Orchestrate via nimpy
+
+ORM Decision
+  → Use sqlite3 directly first
+  → Bring in ormin only if I want automatic model generation and am comfortable
+    with its constraints
+
+
+═════════════════════════════════════════════════════════════
+PROJECT SUMMARY & DIVISION OF LABOR
+═════════════════════════════════════════════════════════════
+
+
+My backend architecture follows a clear division of responsibilities:
+
+Nim handles:
+  • Deterministic structure and text logic
+  • Data integrity and storage
+  • Efficient parsing and tokenization
+  • Rule-based comparison and heuristics
+  • Report generation and export
+
+Python handles:
+  • Embeddings and semantic analysis
+  • High-level classification
+  • Contextual semantics
+  • LLM integration for summarization
+
+The result will be a clean, auditable, high-performance backend that unifies
+deterministic engineering with flexible semantic reasoning—exactly what I need
+for normative consistency analysis that must be both technically sound and
+legally defensible.
+
+
+═════════════════════════════════════════════════════════════
+NEXT STEPS
+═════════════════════════════════════════════════════════════
+
+
+I'll begin implementing the minimal deterministic pipeline starting
+with loader.nim and parser.nim. I'll keep this journal updated with progress,
+challenges encountered, and design decisions made along the way.
+
+The journey begins here.
+
+
+═════════════════════════════════════════════════════════════
+END OF JOURNAL ENTRY 001

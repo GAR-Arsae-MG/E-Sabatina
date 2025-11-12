@@ -1,14 +1,12 @@
 # Package
-
 version       = "0.1.0"
-author        = "tuliofh01"
-description   = "An AI tool made in order to allow government officials to identify contradictions between docurelated to legal regulations."
+author        = "Túlio Horta"
+description   = "An AI tool made in order to allow government officials to identify contradictions \
+                 within any two legal regulatory documents regarding the same subject."
 license       = "Apache-2.0"
-srcDir        = "src"
+srcDir        = "src/nim"
 installExt    = @["nim"]
-bin           = @["automatiza_arsae"]
-
+bin           = @["builds/application"]
 
 # Dependencies
-
-requires "nim >= 2.0.8"
+requires "nim >= 2.0.8", "nimpy", "toktok"
