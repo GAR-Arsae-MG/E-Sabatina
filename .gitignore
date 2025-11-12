@@ -6,3 +6,12 @@ __pycache__/
 # Nim
 nimcache/
 bin/
+
+# Misc
+.cursor/
+.superdesign/
+.vscode/
+
+.windsurfrules
+CLAUDE.md
+
