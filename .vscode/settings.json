@@ -1,8 +1,0 @@
-{
-    "geminicodeassist.inlineSuggestions.nextEditPredictions": true,
-    "geminicodeassist.inlineSuggestions.suggestionSpeed": "Fast",
-    "geminicodeassist.updateChannel": "Default",
-    "geminicodeassist.verboseLogging": true,
-    "geminicodeassist.agentYoloMode": true,
-    "geminicodeassist.agentDebugMode": true
-}
