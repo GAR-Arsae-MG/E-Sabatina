@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+build/
+dist/
+*.egg-info/
+
+# CMake & C++ builds
+builds/
+CMakeFiles/
+CMakeCache.txt
+*.cmake
+*.so
+*.o
+*.a
+*.out
+
+# IDEs / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS trash
+.DS_Store
+Thumbs.db
