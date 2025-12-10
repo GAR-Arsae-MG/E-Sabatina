@@ -9,7 +9,7 @@ from typing import List, Dict, Tuple
 
 
 class TableExtractor:
-    """Advanced table extraction from PDF using PyMuPDF"""
+    """Advanced table extraction from PDF using PyMyPDF"""
 
     def __init__(self, pdf_path: str):
         self.doc = fitz.open(pdf_path)
