@@ -3,3 +3,7 @@ fitz
 pybind11
 setuptools
 pre-commit
+transformers
+torch
+numpy
+

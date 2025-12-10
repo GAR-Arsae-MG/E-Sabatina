@@ -1,0 +1,39 @@
+═══════════════════════════════════════════════════════════════
+                    DEVELOPMENT JOURNAL — ENTRY 003
+           Machine Learning & Semantic Analysis Integration
+                   Python Bridge Architecture via pybind11
+═════════════════════════════════════════════════════════════
+
+
+Date: December 10, 2025
+Focus: Actually implementing a tokenizer from scratch while drastically changing
+the project's architecture due to the lack of Nim support on most IDEs. 
+
+═══════════════════════════════════════════════════════════════════════════
+Why ditching Nim may actually be helpful despite its interesting features
+═══════════════════════════════════════════════════════════════════════════
+
+Well, I must state I really tried to make use of Nim considering this project. 
+However, several occurrences really made using Nim a burden rather than a clever
+choice. I could not code consistently until now due to me being ill until a couple
+days ago. Also holiday season came, making my deadline even tighter. After all, 
+while being my intellectual propriety, I really need this solution to work in order to
+solve a task my internship supervisor is stuck with. Finally, I was facing some issues
+with my old Linux setup and, thus, I had to adopt Arch Linux so as to achieve what I
+was looking for, both functionally and aesthetically. The Arch configuration process
+taught me much, but at a high temporal cost of around a week. I then found myself 
+unable to correctly setup Nim on any of the IDEs I've tried. The lack of autocompletion, documentation and even syntax highlighting made it a rather unpleasant
+experience to deal with. After doing a bit of research, C++ seemed like a better 
+option, in spite of its relative complexity. It is very well supported by most of
+my favorite IDEs out of the box while also being quite familiar as I spent a lot of
+time studying it over the last few years.
+
+═══════════════════════════════════════════════════════════════════════════
+Moving forward with my solution and sticking to the UML diagrams I've made   
+═══════════════════════════════════════════════════════════════════════════
+
+I have made some UML diagrams in order to help me understand the abstract nature of 
+this solution. Before deciding to adopt C++ I was going to begin implementing the
+tokenization bit of the project. I don't see the need for refactoring my previous
+code any further. Now I'll add the diagrams to the documentation and follow as it
+shows.
